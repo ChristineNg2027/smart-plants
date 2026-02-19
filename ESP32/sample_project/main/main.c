@@ -5,7 +5,8 @@
 #include "freertos/task.h"
 
 //internal LED
-#define LED_PIN GPIO_NUM_2
+#define LED_PIN GPIO_NUM_42
+#define MOISTURE_INPUT_GPIO 20
 
 void app_main(void)
 {
@@ -21,8 +22,9 @@ void app_main(void)
     int state = 0;
 
     while (1) {
-        state = gpio_set_level(LED_PIN, 1 ^ state);
-        vTaskDelay(1000);
+        gpio_set_level(LED_PIN, state);
+        state ^= 1;
+        vTaskDelay(100);
     }
     
 }
