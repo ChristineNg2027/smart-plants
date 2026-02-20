@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
