@@ -8,6 +8,14 @@
 #define LED_PIN GPIO_NUM_42
 #define MOISTURE_INPUT_GPIO 20
 
+struct Callibration {
+    char name[20];
+    int min;
+    int max;
+};
+
+struct Callibration moistureCal = {"sensor 1", 800, 2000};
+
 void app_main(void)
 {
     gpio_config_t led_config = {
@@ -39,12 +47,22 @@ void app_main(void)
     int state = 0;
     int raw = 0;
 
+    vTaskDelay(1000);
+
     while (1) {
         gpio_set_level(LED_PIN, state);
         state ^= 1;
         vTaskDelay(raw / 10);
-        adc_oneshot_read(adc_handle, channel, &raw);
-        printf("Moisture raw = %d\n", raw);
+        
+        printf("Moisture= %d\n", monitorMoisture(adc_handle, channel, &moistureCal));
     }
     
+}
+
+int monitorMoisture(adc_oneshot_unit_handle_t adc_handle, adc_channel_t channel, struct Callibration *cal){
+    int rawData;
+    adc_oneshot_read(adc_handle, channel, &rawData);
+    int computedData = (rawData - cal -> min / (4095.0 - (cal -> min + cal -> max))) * 100;
+    return computedData;
+
 }
