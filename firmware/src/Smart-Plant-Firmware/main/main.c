@@ -8,13 +8,48 @@
 #define LED_PIN GPIO_NUM_42
 #define MOISTURE_INPUT_GPIO 20
 
+//poll every 15 mintues
+#define POLLING_PERIOD 15 * 60 * 1000 
+
+TaskHandle_t monitorTaskHandle = NULL;
+
 struct Callibration {
     char name[20];
     int min;
     int max;
 };
 
+typedef struct {
+    adc_oneshot_unit_handle_t adc_handle;
+    adc_channel_t channel;
+    struct Callibration *cal;
+    int iterations;
+} MonitorTaskCtx;
+
+static MonitorTaskCtx monitor_ctx;
+
 struct Callibration moistureCal = {"sensor 1", 800, 2000};
+
+int measureMoisture(adc_oneshot_unit_handle_t adc_handle, adc_channel_t channel, struct Callibration *cal){
+    int rawData;
+    adc_oneshot_read(adc_handle, channel, &rawData);
+    int computedData = 1 / (rawData - cal -> min / (4095.0 - (cal -> min + cal -> max))) * 100;
+    return computedData;
+
+}
+
+void monitorMoistureTask(void *pvParameters) {
+    MonitorTaskCtx *ctx = (MonitorTaskCtx *)pvParameters;
+    int total = 0; 
+    for(int i = 0; i < ctx->iterations; i++) {
+        total += measureMoisture(ctx->adc_handle, ctx->channel, ctx->cal);
+        vTaskDelay(100);
+    }
+
+    vTaskDelay(POLLING_PERIOD);
+
+    printf("Average Moisture: %d\n", total / ctx->iterations);
+}
 
 void app_main(void)
 {
@@ -47,22 +82,17 @@ void app_main(void)
     int state = 0;
     int raw = 0;
 
+    monitor_ctx = (MonitorTaskCtx){ .adc_handle = adc_handle, .channel = channel, .cal = &moistureCal, .iterations = 10 };
+
+
     vTaskDelay(1000);
+
+    xTaskCreatePinnedToCore(monitorMoistureTask, "Moisture Monitor", 4096, &monitor_ctx, 1, &monitorTaskHandle, 1);
 
     while (1) {
         gpio_set_level(LED_PIN, state);
         state ^= 1;
         vTaskDelay(raw / 10);
-        
-        printf("Moisture= %d\n", monitorMoisture(adc_handle, channel, &moistureCal));
     }
     
-}
-
-int monitorMoisture(adc_oneshot_unit_handle_t adc_handle, adc_channel_t channel, struct Callibration *cal){
-    int rawData;
-    adc_oneshot_read(adc_handle, channel, &rawData);
-    int computedData = (rawData - cal -> min / (4095.0 - (cal -> min + cal -> max))) * 100;
-    return computedData;
-
 }
