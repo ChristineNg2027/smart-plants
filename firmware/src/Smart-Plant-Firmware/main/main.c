@@ -28,27 +28,29 @@ typedef struct {
 
 static MonitorTaskCtx monitor_ctx;
 
-struct Callibration moistureCal = {"sensor 1", 800, 2000};
+struct Callibration moistureCal = {"sensor 1", 400, 2500};
 
 int measureMoisture(adc_oneshot_unit_handle_t adc_handle, adc_channel_t channel, struct Callibration *cal){
     int rawData;
     adc_oneshot_read(adc_handle, channel, &rawData);
-    int computedData = 1 / (rawData - cal -> min / (4095.0 - (cal -> min + cal -> max))) * 100;
+    int computedData = 100.0f * (cal->max - rawData) / (cal->max - cal->min);
     return computedData;
 
 }
 
 void monitorMoistureTask(void *pvParameters) {
-    MonitorTaskCtx *ctx = (MonitorTaskCtx *)pvParameters;
-    int total = 0; 
-    for(int i = 0; i < ctx->iterations; i++) {
-        total += measureMoisture(ctx->adc_handle, ctx->channel, ctx->cal);
-        vTaskDelay(100);
+    while(1) {
+        MonitorTaskCtx *ctx = (MonitorTaskCtx *)pvParameters;
+        int total = 0; 
+        for(int i = 0; i < ctx->iterations; i++) {
+            total += measureMoisture(ctx->adc_handle, ctx->channel, ctx->cal);
+            vTaskDelay(100);
+        }
+
+        printf("Average Moisture: %d\n", total / ctx->iterations);
+
+        vTaskDelay(POLLING_PERIOD);
     }
-
-    vTaskDelay(POLLING_PERIOD);
-
-    printf("Average Moisture: %d\n", total / ctx->iterations);
 }
 
 void app_main(void)
@@ -80,8 +82,6 @@ void app_main(void)
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, channel, &chan_cfg));
 
     int state = 0;
-    int raw = 0;
-
     monitor_ctx = (MonitorTaskCtx){ .adc_handle = adc_handle, .channel = channel, .cal = &moistureCal, .iterations = 10 };
 
 
@@ -92,7 +92,7 @@ void app_main(void)
     while (1) {
         gpio_set_level(LED_PIN, state);
         state ^= 1;
-        vTaskDelay(raw / 10);
+        vTaskDelay(500);
     }
     
 }
