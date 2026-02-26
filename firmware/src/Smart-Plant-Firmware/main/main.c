@@ -9,7 +9,7 @@
 #define MOISTURE_INPUT_GPIO 20
 
 //poll every 15 mintues
-#define POLLING_PERIOD 15 * 60 * 1000 
+#define POLLING_PERIOD 1 * 60 * 1000 
 
 TaskHandle_t monitorTaskHandle = NULL;
 
@@ -44,12 +44,12 @@ void monitorMoistureTask(void *pvParameters) {
         int total = 0; 
         for(int i = 0; i < ctx->iterations; i++) {
             total += measureMoisture(ctx->adc_handle, ctx->channel, ctx->cal);
-            vTaskDelay(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
 
         printf("Average Moisture: %d\n", total / ctx->iterations);
 
-        vTaskDelay(POLLING_PERIOD);
+        vTaskDelay(pdMS_TO_TICKS(POLLING_PERIOD));
     }
 }
 
@@ -85,14 +85,14 @@ void app_main(void)
     monitor_ctx = (MonitorTaskCtx){ .adc_handle = adc_handle, .channel = channel, .cal = &moistureCal, .iterations = 10 };
 
 
-    vTaskDelay(1000);
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     xTaskCreatePinnedToCore(monitorMoistureTask, "Moisture Monitor", 4096, &monitor_ctx, 1, &monitorTaskHandle, 1);
 
     while (1) {
         gpio_set_level(LED_PIN, state);
         state ^= 1;
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
     
 }
